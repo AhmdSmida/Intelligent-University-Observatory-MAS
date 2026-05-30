@@ -1,0 +1,12 @@
+mesa
+streamlit
+pandas
+requests
+beautifulsoup4
+pytest
+sqlalchemy
+networkx
+scikit-learn
+spacy
+matplotlib
+plotly

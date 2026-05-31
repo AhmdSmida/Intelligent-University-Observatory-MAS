@@ -14,10 +14,30 @@ SCRAPING_INTERVALS = {
     "research_projects": 172800, # 48 hours
 }
 
-# Source URLs
-SOURCE_URLS = {
-    "internships": ["https://example.com/internships"],
-    "scholarships": ["https://example.com/scholarships"],
-    "certifications": ["https://example.com/certifications"],
-    "research_projects": ["https://example.com/research"],
+# Mock Source URLs (used during simulated mock runs)
+MOCK_SOURCE_URLS = {
+    "internships": ["https://example.com/mock-internships"],
+    "scholarships": ["https://example.com/mock-scholarships"],
+    "certifications": ["https://example.com/mock-certifications"],
+    "research_projects": ["https://example.com/mock-research"],
+}
+
+# Real Source URLs (used during live production runs)
+REAL_SOURCE_URLS = {
+    "internships": [
+        "https://www.linkedin.com/jobs/internship-jobs",
+        "https://www.indeed.com/q-internship-jobs.html"
+    ],
+    "scholarships": [
+        "https://www.opportunitiescircle.com/scholarships/",
+        "https://www.scholars4dev.com/category/scholarships/"
+    ],
+    "certifications": [
+        "https://www.coursera.org/courses?query=free",
+        "https://www.edx.org/search?q=free"
+    ],
+    "research_projects": [
+        "https://www.researchgate.net/jobs/research",
+        "https://euraxess.ec.europa.eu/jobs/search"
+    ],
 }

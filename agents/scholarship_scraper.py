@@ -1,3 +1,4 @@
+import config
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 from agents.base_scraper import BaseScraperAgent
@@ -5,16 +6,40 @@ from agents.base_scraper import BaseScraperAgent
 class ScholarshipScraper(BaseScraperAgent):
     """Scrapes opportunitiescircle.com and scholars4dev.com for scholarships."""
     
+    @property
+    def scraper_type(self) -> str:
+        return "scholarships"
+        
     def get_sources(self) -> List[str]:
-        return [
-            "https://www.opportunitiescircle.com/scholarships/",
-            "https://www.scholars4dev.com/category/scholarships/"
-        ]
+        if self.mock_mode:
+            return config.MOCK_SOURCE_URLS.get("scholarships", [])
+        return config.REAL_SOURCE_URLS.get("scholarships", [])
 
     def parse(self, html: str) -> List[Dict[str, Any]]:
-        # Parsing logic for scholarship listings
         soup = BeautifulSoup(html, 'html.parser')
         parsed_items = []
+        
+        # Parse typical WordPress blog posts (scholars4dev, opportunitiescircle)
+        for post in soup.find_all(['article', 'div'], class_=lambda c: c and ('post' in c or 'type-post' in c or 'entry' in c)):
+            try:
+                title_elem = post.find(['h2', 'h3', 'a'])
+                desc_elem = post.find(['div', 'p'], class_=lambda c: c and ('excerpt' in c or 'content' in c))
+                link_elem = post.find('a', href=True)
+                
+                if title_elem and link_elem:
+                    parsed_items.append({
+                        "title": title_elem.get_text(strip=True),
+                        "description": desc_elem.get_text(strip=True)[:200] + "..." if desc_elem else "Scholarship opportunity",
+                        "deadline": "2026-12-31",
+                        "url": link_elem['href'],
+                        "source": "Scholarship Web",
+                        "type": "scholarship",
+                        "location": "Global",
+                        "eligibility": "Students / Researchers"
+                    })
+            except Exception as e:
+                pass
+                
         return parsed_items
 
     def generate_mock_data(self) -> List[Dict[str, Any]]:

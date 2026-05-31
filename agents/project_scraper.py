@@ -1,3 +1,4 @@
+import config
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 from agents.base_scraper import BaseScraperAgent
@@ -5,16 +6,43 @@ from agents.base_scraper import BaseScraperAgent
 class ProjectScraper(BaseScraperAgent):
     """Scrapes researchgate.net and euraxess.eu for research projects."""
     
+    @property
+    def scraper_type(self) -> str:
+        return "research_projects"
+        
     def get_sources(self) -> List[str]:
-        return [
-            "https://www.researchgate.net/jobs/research",
-            "https://euraxess.ec.europa.eu/jobs/search"
-        ]
+        if self.mock_mode:
+            return config.MOCK_SOURCE_URLS.get("research_projects", [])
+        return config.REAL_SOURCE_URLS.get("research_projects", [])
 
     def parse(self, html: str) -> List[Dict[str, Any]]:
-        # Parsing logic for research project listings
         soup = BeautifulSoup(html, 'html.parser')
         parsed_items = []
+        
+        for card in soup.find_all(['div', 'li', 'article'], class_=lambda c: c and ('job' in c.lower() or 'item' in c.lower() or 'card' in c.lower())):
+            try:
+                title_elem = card.find(['h2', 'h3', 'a'])
+                loc_elem = card.find(['div', 'span'], class_=lambda c: c and 'location' in c.lower())
+                link_elem = card.find('a', href=True)
+                
+                if title_elem and link_elem and len(title_elem.get_text(strip=True)) > 5:
+                    url = link_elem['href']
+                    if url.startswith('/'):
+                        url = "https://www.researchgate.net" + url
+                        
+                    parsed_items.append({
+                        "title": title_elem.get_text(strip=True),
+                        "description": "Research project opportunity.",
+                        "deadline": "2026-12-31",
+                        "url": url,
+                        "source": "Research Portal",
+                        "type": "research",
+                        "location": loc_elem.get_text(strip=True) if loc_elem else "Global",
+                        "eligibility": "Academic Researchers"
+                    })
+            except Exception as e:
+                pass
+                
         return parsed_items
 
     def generate_mock_data(self) -> List[Dict[str, Any]]:

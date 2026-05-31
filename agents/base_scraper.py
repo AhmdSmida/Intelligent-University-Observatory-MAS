@@ -38,10 +38,22 @@ class BaseScraperAgent(Agent, ABC):
     # Every parsed item must contain these keys before being allowed into the DB
     REQUIRED_KEYS = {"title", "description", "deadline", "url", "source", "type", "location", "eligibility"}
 
-    def __init__(self, model, mock_mode: bool = False):
+    def __init__(self, model, mock_mode: bool = None):
         super().__init__(model)
-        self.mock_mode = mock_mode
+        # Use provided mock_mode, or fallback to the global config
+        if mock_mode is not None:
+            self.mock_mode = mock_mode
+        else:
+            self.mock_mode = self.model.config.get("SCRAPER_MOCK_MODE", False)
+            
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.last_scrape_time = 0
+        
+    @property
+    @abstractmethod
+    def scraper_type(self) -> str:
+        """Return the string key corresponding to config.SCRAPING_INTERVALS"""
+        pass
         
     @abstractmethod
     def get_sources(self) -> List[str]:
@@ -55,16 +67,48 @@ class BaseScraperAgent(Agent, ABC):
 
     def fetch_url(self, url: str) -> str:
         """
-        Fetches HTML from a URL with graceful error handling and a single retry.
+        Fetches HTML from a URL using a Headless Chrome Browser.
         """
+        from selenium import webdriver
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.chrome.options import Options
+        from webdriver_manager.chrome import ChromeDriverManager
+        import random
+        
         for attempt in range(2): # Attempt 1 + Retry 1
             try:
-                # Add a realistic timeout to prevent hanging the simulation
-                response = requests.get(url, timeout=10)
-                response.raise_for_status() # Raises HTTPError for bad responses
-                return response.text
-            except requests.RequestException as e:
+                options = Options()
+                options.add_argument('--headless')
+                options.add_argument('--disable-gpu')
+                options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
+                options.add_argument('--window-size=1920,1080')
+                options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+                
+                # Setup webdriver manager to automatically download driver
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=options)
+                
+                # Add random sleep before fetching to mimic human
+                time.sleep(random.uniform(2, 5))
+                
+                self.logger.info(f"Selenium fetching URL: {url}")
+                driver.get(url)
+                
+                # Wait for potential javascript to load
+                time.sleep(random.uniform(3, 6))
+                
+                html = driver.page_source
+                driver.quit()
+                
+                return html
+                
+            except Exception as e:
                 self.logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
+                try:
+                    driver.quit()
+                except:
+                    pass
                 if attempt == 0:
                     time.sleep(2) # Graceful backoff before retry
                 else:
@@ -133,6 +177,16 @@ class BaseScraperAgent(Agent, ABC):
         """
         The Template Method defining the execution workflow for all scrapers.
         """
+        import config
+        
+        if not self.mock_mode:
+            current_time = time.time()
+            interval = config.SCRAPING_INTERVALS.get(self.scraper_type, 86400)
+            if current_time - self.last_scrape_time < interval:
+                # self.logger.info(f"Skipping scrape. Next scrape in {interval - (current_time - self.last_scrape_time):.0f} seconds.")
+                return 0
+            self.last_scrape_time = current_time
+
         valid_items = []
         
         if self.mock_mode:

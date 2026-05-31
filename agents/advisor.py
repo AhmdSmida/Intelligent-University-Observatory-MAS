@@ -76,7 +76,7 @@ class AgentAdvisor(Agent):
                             score_pct = int(item['score'] * 100)
                             print(f"     - {item['title']} (Match: {score_pct}%)")
                             
-                print("\n" + "━"*60 + "\n")
+                print("\n" + "="*60 + "\n")
                 
                 # 4. Mark all logged recommendations as "sent=True"
                 cursor.executemany("UPDATE Recommendations SET sent = 1 WHERE id = ?", marked_sent_ids)
